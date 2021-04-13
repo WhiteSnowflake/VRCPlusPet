@@ -1,0 +1,2 @@
+﻿
+Put libraries that project needed in that folder.
