@@ -1,11 +1,11 @@
 
+using System;
 using Harmony;
 using VRC.Core;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Reflection;
-using MethodBase = System.Reflection.MethodBase;
 
 namespace VRCPlusPet
 {
@@ -29,9 +29,9 @@ namespace VRCPlusPet
                 modHarmonyInstance.Patch(TargetMethod, Prefix, Postfix);
                 MelonLogger.Msg($"Patching method [{++patchNum}] - Success");
             }
-            catch
+            catch (Exception e)
             {
-                MelonLogger.Error($"Patching method [{++patchNum}] - Error");
+                MelonLogger.Error($"Patching method [{++patchNum}] - Error: {e.Message}");
             }
         }
 
@@ -46,7 +46,7 @@ namespace VRCPlusPet
             Patch(typeof(APIUser).GetMethod("get_isEarlyAdopter"), null, GetLocalPatchMethod("FakeVRCPlusSocialPatch"));
 
             //Rebuild warning
-            Patch(typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethod("Method_Public_Static_Boolean_4"), null, GetLocalPatchMethod("FakeVRCPlusPatch"));
+            Patch(typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethod("Method_Public_Static_Boolean_1"), GetLocalPatchMethod("FakeVRCPlusPatch"), null);
 
             Utils.LogAsHeader("Patching complete!");
         }
@@ -66,10 +66,15 @@ namespace VRCPlusPet
                 __result = true;
         }
 
-        static void FakeVRCPlusPatch(ref bool __result)
+        static bool FakeVRCPlusPatch(ref bool __result)
         {
             if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameFakeVRCP))
+            {
                 __result = true;
+                return false;
+            }
+
+            return true;
         }
 
         static void OnEnablePetPatch(VRCPlusThankYou __instance)
