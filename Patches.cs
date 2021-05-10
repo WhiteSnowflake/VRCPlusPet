@@ -1,11 +1,13 @@
 
 using System;
+using System.Linq;
+using System.Reflection;
 using Harmony;
 using VRC.Core;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Reflection;
+using UnhollowerRuntimeLib.XrefScans;
 
 namespace VRCPlusPet
 {
@@ -41,12 +43,32 @@ namespace VRCPlusPet
         {
             Utils.LogAsHeader("Patching methods...");
 
-            Patch(typeof(VRCPlusThankYou).GetMethod("OnEnable"), GetLocalPatchMethod("OnEnablePetPatch"), null);
-            Patch(typeof(APIUser).GetMethod("get_isSupporter"), null, GetLocalPatchMethod("FakeVRCPlusSocialPatch"));
-            Patch(typeof(APIUser).GetMethod("get_isEarlyAdopter"), null, GetLocalPatchMethod("FakeVRCPlusSocialPatch"));
+            Patch(typeof(VRCPlusThankYou).GetMethod("OnEnable"), GetLocalPatchMethod(nameof(OnEnablePetPatch)), null);
+            Patch(typeof(APIUser).GetMethod("get_isSupporter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
+            Patch(typeof(APIUser).GetMethod("get_isEarlyAdopter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
 
             //Rebuild warning
-            Patch(typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethod("Method_Public_Static_Boolean_1"), GetLocalPatchMethod("FakeVRCPlusPatch"), null);
+            foreach (MethodInfo methodInfo in typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.StartsWith("Method_Public_Static_Boolean_")))
+            {
+                int count = 0;
+                var instances = XrefScanner.UsedBy(methodInfo);
+
+                foreach (XrefInstance instance in instances)
+                {
+                    MethodBase calledMethod = instance.TryResolve();
+
+                    if (calledMethod != null && calledMethod.Name == ".ctor" || calledMethod.Name == "LateUpdate" || calledMethod.Name == "CancelProcessing")
+                    {
+                        count++;
+
+                        if (count == 9)
+                        {
+                            Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
+                            break;
+                        }
+                    }
+                }
+            }
 
             Utils.LogAsHeader("Patching complete!");
         }
