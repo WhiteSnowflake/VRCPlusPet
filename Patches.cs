@@ -15,7 +15,9 @@ namespace VRCPlusPet
     {
         static HarmonyInstance modHarmonyInstance = HarmonyInstance.Create(BuildInfo.Name);
 
-        static int patchNum = 0;
+        static int
+            patchNum = 0,
+            patchesCount = 4;
 
         static Transform petTransformCache;
 
@@ -29,11 +31,11 @@ namespace VRCPlusPet
             try
             {
                 modHarmonyInstance.Patch(TargetMethod, Prefix, Postfix);
-                MelonLogger.Msg($"Patching method [{++patchNum}] - Success");
+                MelonLogger.Msg($"Patching method [{++patchNum}/{patchesCount}] - Success");
             }
             catch (Exception e)
             {
-                MelonLogger.Error($"Patching method [{++patchNum}] - Error: {e.Message}");
+                MelonLogger.Error($"Patching method [{++patchNum}/{patchesCount}] - Error: {e.Message}");
             }
         }
 
@@ -47,30 +49,38 @@ namespace VRCPlusPet
             Patch(typeof(APIUser).GetMethod("get_isSupporter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
             Patch(typeof(APIUser).GetMethod("get_isEarlyAdopter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
 
-            //Rebuild warning
-            foreach (MethodInfo methodInfo in typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.StartsWith("Method_Public_Static_Boolean_")))
+            bool errorFound = false;
+
+            try
             {
-                int count = 0;
-                var instances = XrefScanner.UsedBy(methodInfo);
-
-                foreach (XrefInstance instance in instances)
+                //Rebuild warning
+                foreach (MethodInfo methodInfo in typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.StartsWith("Method_Public_Static_Boolean_")))
                 {
-                    MethodBase calledMethod = instance.TryResolve();
-
-                    if (calledMethod != null && calledMethod.Name == ".ctor" || calledMethod.Name == "LateUpdate" || calledMethod.Name == "CancelProcessing")
+                    foreach (XrefInstance instance in XrefScanner.UsedBy(methodInfo))
                     {
-                        count++;
+                        MethodBase calledMethod = instance.TryResolve();
 
-                        if (count == 9)
+                        if (calledMethod != null && calledMethod.Name == ".ctor")
                         {
                             Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
                             break;
                         }
                     }
                 }
+
+                if (patchNum < patchesCount)
+                {
+                    MelonLogger.Error("Patching method [4] - Error: Xref Scanning Failed");
+                    errorFound = true;
+                }
+            }
+            catch
+            {
+                MelonLogger.Error("Patching method [4] - Error: The class was renamed");
+                errorFound = true;
             }
 
-            Utils.LogAsHeader("Patching complete!");
+            Utils.LogAsHeader(errorFound ? "Patching complete with an Error!" : "Patching complete!");
         }
 
         static void SMElementActiveSetter(GameObject go)
