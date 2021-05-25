@@ -1,13 +1,10 @@
 
 using System;
-using System.Linq;
 using System.Reflection;
 using Harmony;
-using VRC.Core;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
-using UnhollowerRuntimeLib.XrefScans;
 
 namespace VRCPlusPet
 {
@@ -17,7 +14,7 @@ namespace VRCPlusPet
 
         static int
             patchNum = 0,
-            patchesCount = 4;
+            patchesCount = 1;
 
         static Transform petTransformCache;
 
@@ -46,69 +43,19 @@ namespace VRCPlusPet
             Utils.LogAsHeader("Patching methods...");
 
             Patch(typeof(VRCPlusThankYou).GetMethod("OnEnable"), GetLocalPatchMethod(nameof(OnEnablePetPatch)), null);
-            Patch(typeof(APIUser).GetMethod("get_isSupporter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
-            Patch(typeof(APIUser).GetMethod("get_isEarlyAdopter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
 
-            bool errorFound = false;
-
-            try
-            {
-                //Rebuild warning
-                foreach (MethodInfo methodInfo in typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.StartsWith("Method_Public_Static_Boolean_")))
-                {
-                    foreach (XrefInstance instance in XrefScanner.UsedBy(methodInfo))
-                    {
-                        MethodBase calledMethod = instance.TryResolve();
-
-                        if (calledMethod != null && calledMethod.Name == ".ctor")
-                        {
-                            Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
-                            break;
-                        }
-                    }
-                }
-
-                if (patchNum < patchesCount)
-                {
-                    MelonLogger.Error("Patching method [4] - Error: Xref Scanning Failed");
-                    errorFound = true;
-                }
-            }
-            catch
-            {
-                MelonLogger.Error("Patching method [4] - Error: The class was renamed");
-                errorFound = true;
-            }
-
-            Utils.LogAsHeader(errorFound ? "Patching complete with an Error!" : "Patching complete!");
+            Utils.LogAsHeader("Patching complete!");
         }
 
         static void SMElementActiveSetter(GameObject go)
         {
             if (go.name == "UserIconCameraButton")
-                go.SetActive(!MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideIconCameraButton));
+                go.SetActive(!Utils.GetPref(VRCPlusPet.mlCfgNameHideIconCameraButton));
             else if (go.name == "UserIconButton")
-                go.SetActive(!MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideUserIconsButton));
+                go.SetActive(!Utils.GetPref(VRCPlusPet.mlCfgNameHideUserIconsButton));
         }
 
         #region Patches
-        static void FakeVRCPlusSocialPatch(APIUser __instance, ref bool __result)
-        {
-            if (__instance.IsSelf && MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameFakeVRCP))
-                __result = true;
-        }
-
-        static bool FakeVRCPlusPatch(ref bool __result)
-        {
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameFakeVRCP))
-            {
-                __result = true;
-                return false;
-            }
-
-            return true;
-        }
-
         static void OnEnablePetPatch(VRCPlusThankYou __instance)
         {
             __instance.field_Public_Boolean_0 = false; //oncePerWorld
