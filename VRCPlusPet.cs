@@ -1,8 +1,10 @@
 
 using System.IO;
 using System.Linq;
+using System.Collections;
 using MelonLoader;
 using UnityEngine;
+using VRC.Core;
 
 namespace VRCPlusPet
 {
@@ -12,8 +14,8 @@ namespace VRCPlusPet
         public const string Description = "Hides VRC+ advertising, can replace default pet, his phrases, poke sounds and chat bubble.";
         public const string Author = "WhiteSnowflake";
         public const string Company = null;
-        public const string Version = "1.1.7";
-        public const string DownloadLink = "https://github.com/WhiteSnowflake/VRCPlusPet";
+        public const string Version = "1.1.8";
+        public const string DownloadLink = "https://github.com/WhiteSnowflake/VRCPlusPet/tree/local-vrcp-version";
     }
 
     public class VRCPlusPet : MelonMod
@@ -26,15 +28,14 @@ namespace VRCPlusPet
 
         public static string
             mlCfgNameFakeVRCP = "Fake VRCP",
-            mlCfgNameHideUserIconTab = "Hide User Icons menu tab",
+            mlCfgNameHideGalleryTab = "Hide Gallery menu tab (VRC+ Only)",
             mlCfgNameHideVRCPTab = "Hide VRC+ menu tab",
             mlCfgNameHideSocialSupporterButton = "Hide Social Supporter button",
-            mlCfgNameHideUserIconsButton = "Hide User Icons button",
-            mlCfgNameHideIconCameraButton = "Hide Icon Camera button";
+            mlCfgNameHideGalleryButton = "Hide Gallery button";
 
         public static bool
             cachedCfgFakeVRCP,
-            cachedCfgHideUserIconTab,
+            cachedCfgHideGalleryTab,
             cachedCfgHideVRCPTab;
 
         public static Sprite
@@ -45,8 +46,6 @@ namespace VRCPlusPet
             petNormalPhrases = new Il2CppSystem.Collections.Generic.List<string>(),
             petPokePhrases = new Il2CppSystem.Collections.Generic.List<string>(),
             emptyList = null;
-
-
 
         public override void OnPreferencesSaved() => Utils.InitUI();
 
@@ -59,16 +58,15 @@ namespace VRCPlusPet
             MelonPreferences.CreateCategory(BuildInfo.Name, BuildInfo.Name);
 
             MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameFakeVRCP, false);
-            cachedCfgFakeVRCP = MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameFakeVRCP);
+            cachedCfgFakeVRCP = Utils.GetPref(mlCfgNameFakeVRCP);
 
-            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideUserIconTab, false);
-            cachedCfgHideUserIconTab = MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameHideUserIconTab);
+            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideGalleryTab, false);
+            cachedCfgHideGalleryTab = Utils.GetPref(mlCfgNameHideGalleryTab);
 
             MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideVRCPTab, false);
-            cachedCfgHideVRCPTab = MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameHideVRCPTab);
+            cachedCfgHideVRCPTab = Utils.GetPref(mlCfgNameHideVRCPTab);
 
-            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideIconCameraButton, false);
-            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideUserIconsButton, false);
+            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideGalleryButton, false);
             MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideSocialSupporterButton, false);
             MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameReplacePet, false);
             MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameReplaceBubble, false);
@@ -78,31 +76,31 @@ namespace VRCPlusPet
             if (!MelonHandler.Mods.Any(mod => mod.Info.Name == "UI Expansion Kit"))
                 MelonLogger.Warning("UIExpansionKit not found, visual preferences cannot be accessed");
 
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameFakeVRCP))
-                MelonLogger.Msg(string.Format("Option \"{0}\" | VRC+ will be cracked locally", mlCfgNameFakeVRCP));
+            if (Utils.GetPref(mlCfgNameFakeVRCP))
+                MelonLogger.Msg($"Option \"{mlCfgNameFakeVRCP}\" | VRC+ will be cracked locally");
 
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameReplacePet))
+            if (Utils.GetPref(mlCfgNameReplacePet))
             {
-                MelonLogger.Msg(string.Format("Option \"{0}\" | Pet image will be replaced", mlCfgNameReplacePet));
+                MelonLogger.Msg($"Option \"{mlCfgNameReplacePet}\" | Pet image will be replaced");
                 Utils.SetupSprite("pet.png", mlCfgNameReplacePet, ref petSprite);
             }
 
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameReplaceBubble))
+            if (Utils.GetPref(mlCfgNameReplaceBubble))
             {
-                MelonLogger.Msg(string.Format("Option \"{0}\" | Bubble image will be replaced", mlCfgNameReplaceBubble));
+                MelonLogger.Msg($"Option \"{mlCfgNameReplaceBubble}\" | Bubble image will be replaced");
                 Utils.SetupSprite("bubble.png", mlCfgNameReplaceBubble, ref bubbleSprite, true);
             }
 
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameReplacePhrases))
+            if (Utils.GetPref(mlCfgNameReplacePhrases))
             {
-                MelonLogger.Msg(string.Format("Option \"{0}\" | Pet phrases will be replaced", mlCfgNameReplacePhrases));
+                MelonLogger.Msg($"Option \"{mlCfgNameReplacePhrases}\" | Pet phrases will be replaced");
                 Utils.SetupConfigFile("normalPhrases.txt", ref petNormalPhrases);
                 Utils.SetupConfigFile("pokePhrases.txt", ref petPokePhrases);
             }
 
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameReplaceSounds))
+            if (Utils.GetPref(mlCfgNameReplaceSounds))
             {
-                MelonLogger.Msg(string.Format("Option \"{0}\" | Pet sounds will be replaced", mlCfgNameReplaceSounds));
+                MelonLogger.Msg($"Option \"{mlCfgNameReplaceSounds}\" | Pet sounds will be replaced");
 
                 foreach (string fileName in Directory.GetFiles(Utils.SetupConfigFile("audio", ref emptyList, true), "*.*", SearchOption.TopDirectoryOnly))
                     if (fileName.Contains(".ogg") || fileName.Contains(".wav"))
@@ -112,24 +110,28 @@ namespace VRCPlusPet
             }
 
             if (cachedCfgHideVRCPTab)
-                MelonLogger.Msg(string.Format("Option \"{0}\" | Menu 'VRC+' tab will be hided", mlCfgNameHideVRCPTab));
+                MelonLogger.Msg($"Option \"{mlCfgNameHideVRCPTab}\" | Menu 'VRC+' tab will be hided");
 
-            if (cachedCfgHideUserIconTab)
-                MelonLogger.Msg(string.Format("Option \"{0}\" | Menu 'User Icons' tab will be hided", mlCfgNameHideUserIconTab));
+            if (cachedCfgHideGalleryTab)
+                MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryTab}\" | 'Gallery' menu tab will be hided");
 
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameHideIconCameraButton))
-                MelonLogger.Msg(string.Format("Option \"{0}\" | 'Icon Camera' button will be hided", mlCfgNameHideIconCameraButton));
-
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameHideUserIconsButton))
-                MelonLogger.Msg(string.Format("Option \"{0}\" | 'User Icons' button will be hided", mlCfgNameHideUserIconsButton));
+            if (Utils.GetPref(mlCfgNameHideGalleryButton))
+                MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryButton}\" | 'Gallery' button will be hided");
 
             Patches.DoPatches();
         }
 
+        static IEnumerator WaitForAPIUserAndInitUI()
+        {
+            while (APIUser.CurrentUser == null)
+                yield return null;
+
+            Utils.InitUI(true);
+        }
+    
         public override void VRChat_OnUiManagerInit()
         {
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, mlCfgNameFakeVRCP))
-                Utils.InitUI(true);
+            MelonCoroutines.Start(WaitForAPIUserAndInitUI());
         }
     }
 }
