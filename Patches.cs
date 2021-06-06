@@ -60,7 +60,7 @@ namespace VRCPlusPet
                     {
                         MethodBase calledMethod = instance.TryResolve();
 
-                        if (calledMethod != null && calledMethod.Name == ".ctor")
+                        if (calledMethod != null && calledMethod.Name == "AddMessageResponse")
                         {
                             Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
                             break;
@@ -68,9 +68,10 @@ namespace VRCPlusPet
                     }
                 }
 
-                if (patchNum < patchesCount)
+                if (patchNum != patchesCount)
                 {
-                    MelonLogger.Error("Patching method [4] - Error: Xref Scanning Failed");
+                    MelonLogger.Error("Patching method [4] - Error: Xref Scanning Failed, unpatching all...");
+                    modHarmonyInstance.UnpatchAll();
                     errorFound = true;
                 }
             }
@@ -80,27 +81,19 @@ namespace VRCPlusPet
                 errorFound = true;
             }
 
-            Utils.LogAsHeader(errorFound ? "Patching complete with an Error!" : "Patching complete!");
-        }
-
-        static void SMElementActiveSetter(GameObject go)
-        {
-            if (go.name == "UserIconCameraButton")
-                go.SetActive(!MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideIconCameraButton));
-            else if (go.name == "UserIconButton")
-                go.SetActive(!MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideUserIconsButton));
+            Utils.LogAsHeader(errorFound ? "Patching Failed!" : "Patching complete!");
         }
 
         #region Patches
         static void FakeVRCPlusSocialPatch(APIUser __instance, ref bool __result)
         {
-            if (__instance.IsSelf && MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameFakeVRCP))
+            if (__instance.IsSelf && Utils.GetPref(VRCPlusPet.mlCfgNameFakeVRCP))
                 __result = true;
         }
 
         static bool FakeVRCPlusPatch(ref bool __result)
         {
-            if (MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameFakeVRCP))
+            if (Utils.GetPref(VRCPlusPet.mlCfgNameFakeVRCP))
             {
                 __result = true;
                 return false;
