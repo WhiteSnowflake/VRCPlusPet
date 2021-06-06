@@ -1,5 +1,6 @@
 
 using Harmony;
+using VRC.Core;
 using System.IO;
 using MelonLoader;
 using UnityEngine;
@@ -77,7 +78,7 @@ namespace VRCPlusPet
 
                 //poka-yoke
                 if (imageByteArray.Length < 67 || !ImageConversion.LoadImage(newTexture, imageByteArray))
-                    MelonLogger.Error(string.Format("Option \"{0}\" | Image loading error", configName));
+                    MelonLogger.Error($"Option \"{configName}\" | Image loading error");
                 else
                 {
                     sprite = Sprite.CreateSprite(newTexture, new Rect(.0f, .0f, newTexture.width, newTexture.height), new Vector2(.5f, .5f), 100f, 0, 0, specialBorder ? new Vector4(35f, 55f, 62f, 41f) : new Vector4(), false);
@@ -85,23 +86,29 @@ namespace VRCPlusPet
                 }
             }
             else
-                MelonLogger.Warning(string.Format("Option \"{0}\" | Image not found (UserData/{1}/{2})", configName, configPath, fileName));
+                MelonLogger.Warning($"Option \"{configName}\" | Image not found (UserData/{configPath}/{fileName})");
         }
 
         public static void InitUI(bool firstInit = false)
         {
-            SetBadGoDisabler(GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/UserIconCameraButton"), !MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideIconCameraButton));
-            GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/UserIconButton")?.SetActive(!MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideUserIconsButton));
-            GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/Supporter")?.SetActiveRecursively(!MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideSocialSupporterButton));
+            SetBadGoDisabler(GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/GalleryButton"), !GetPref(VRCPlusPet.mlCfgNameHideGalleryButton));
+            SetBadGoDisabler(GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/Buttons/RightSideButtons/RightUpperButtonColumn/Supporter"), !GetPref(VRCPlusPet.mlCfgNameHideSocialSupporterButton));
 
-            bool fakeVRCP = MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameFakeVRCP);
-            bool hideUserIconTab = MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideUserIconTab);
-            bool hideVRCPTab = MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, VRCPlusPet.mlCfgNameHideVRCPTab);
+            bool fakeVRCP = GetPref(VRCPlusPet.mlCfgNameFakeVRCP);
+            bool hideGalleryTab = GetPref(VRCPlusPet.mlCfgNameHideGalleryTab);
 
-            if (firstInit || VRCPlusPet.cachedCfgFakeVRCP != fakeVRCP || VRCPlusPet.cachedCfgHideUserIconTab != hideUserIconTab || VRCPlusPet.cachedCfgHideVRCPTab != hideVRCPTab)
+            if ((fakeVRCP && !hideGalleryTab) || (!APIUser.CurrentUser.isSupporter && !hideGalleryTab))
+            {
+                MelonPreferences.SetEntryValue(BuildInfo.Name, VRCPlusPet.mlCfgNameHideGalleryTab, true);
+                hideGalleryTab = true;
+            }
+
+            bool hideVRCPTab = GetPref(VRCPlusPet.mlCfgNameHideVRCPTab);
+
+            if (firstInit || VRCPlusPet.cachedCfgFakeVRCP != fakeVRCP || VRCPlusPet.cachedCfgHideGalleryTab != hideGalleryTab || VRCPlusPet.cachedCfgHideVRCPTab != hideVRCPTab)
             {
                 VRCPlusPet.cachedCfgFakeVRCP = fakeVRCP;
-                VRCPlusPet.cachedCfgHideUserIconTab = hideUserIconTab;
+                VRCPlusPet.cachedCfgHideGalleryTab = hideGalleryTab;
                 VRCPlusPet.cachedCfgHideVRCPTab = hideVRCPTab;
 
                 Transform tabsTransform = GameObject.Find("UserInterface/MenuContent/Backdrop/Header/Tabs/ViewPort/Content").transform;
@@ -119,11 +126,11 @@ namespace VRCPlusPet
                         {
                             LayoutElement childLayoutElement = childTransform.GetComponent<LayoutElement>();
 
-                            if (childName == "UserIconTab")
-                                SetBadGoDisabler(childLayoutElement.gameObject, !hideUserIconTab);
+                            if (childName == "GalleryTab")
+                                SetBadGoDisabler(childLayoutElement.gameObject, !hideGalleryTab);
                             else
                             {
-                                if (hideUserIconTab)
+                                if (hideGalleryTab)
                                 {
                                     if (!originalSizes.ContainsKey(childName))
                                         originalSizes.Add(childName, childLayoutElement.preferredWidth);
@@ -146,15 +153,25 @@ namespace VRCPlusPet
             MelonLogger.Msg(spacesForHeader);
         }
 
-        static void SetBadGoDisabler(GameObject go, bool isActive)
+        public static bool GetPref(string prefName)
+        {
+            return MelonPreferences.GetEntryValue<bool>(BuildInfo.Name, prefName);
+        }
+
+        public static void SetBadGoDisabler(GameObject go, bool isActive)
         {
             if (go == null)
                 return;
 
             BadGoDisabler badGoDisabler = go.GetComponent<BadGoDisabler>();
 
-            if (isActive && badGoDisabler != null)
-                GameObject.Destroy(badGoDisabler);
+            if (isActive)
+            {
+                if (badGoDisabler != null)
+                    GameObject.Destroy(badGoDisabler);
+
+                go.SetActive(true);
+            }
             else if (badGoDisabler == null)
                 go.AddComponent<BadGoDisabler>();
         }
