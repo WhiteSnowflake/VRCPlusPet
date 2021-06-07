@@ -21,10 +21,10 @@ namespace VRCPlusPet
     public class VRCPlusPet : MelonMod
     {
         static string
-            mlCfgNameReplacePet = "Replace Pet",
-            mlCfgNameReplaceBubble = "Replace Bubble",
-            mlCfgNameReplacePhrases = "Replace Phrases",
-            mlCfgNameReplaceSounds = "Replace Sounds";
+            mlCfgNameReplacePet = "Replace Pet (After Restart)",
+            mlCfgNameReplaceBubble = "Replace Bubble (After Restart)",
+            mlCfgNameReplacePhrases = "Replace Phrases (After Restart)",
+            mlCfgNameReplaceSounds = "Replace Sounds (After Restart)";
 
         public static string
             mlCfgNameFakeVRCP = "Fake VRCP",
