@@ -24,7 +24,8 @@ namespace VRCPlusPet
 
 
 
-        static void Patch(MethodBase TargetMethod, HarmonyMethod Prefix, HarmonyMethod Postfix) {
+        static void Patch(MethodBase TargetMethod, HarmonyMethod Prefix, HarmonyMethod Postfix)
+        {
             try
             {
                 modHarmonyInstance.Patch(TargetMethod, Prefix, Postfix);
@@ -45,14 +46,6 @@ namespace VRCPlusPet
             Patch(typeof(VRCPlusThankYou).GetMethod("OnEnable"), GetLocalPatchMethod(nameof(OnEnablePetPatch)), null);
 
             Utils.LogAsHeader("Patching complete!");
-        }
-
-        static void SMElementActiveSetter(GameObject go)
-        {
-            if (go.name == "UserIconCameraButton")
-                go.SetActive(!Utils.GetPref(VRCPlusPet.mlCfgNameHideIconCameraButton));
-            else if (go.name == "UserIconButton")
-                go.SetActive(!Utils.GetPref(VRCPlusPet.mlCfgNameHideUserIconsButton));
         }
 
         #region Patches
