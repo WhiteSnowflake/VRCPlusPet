@@ -5,6 +5,7 @@ using System.IO;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -91,23 +92,22 @@ namespace VRCPlusPet
 
         public static void InitUI(bool firstInit = false)
         {
-            SetBadGoDisabler(GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/UserIconCameraButton"), !GetPref(VRCPlusPet.mlCfgNameHideIconCameraButton));
-            GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/UserIconButton")?.SetActive(!GetPref(VRCPlusPet.mlCfgNameHideUserIconsButton));
-            GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/Supporter")?.SetActiveRecursively(!GetPref(VRCPlusPet.mlCfgNameHideSocialSupporterButton));
+            SetBadGoDisabler(GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/GalleryButton"), !GetPref(VRCPlusPet.mlCfgNameHideGalleryButton));
+            SetBadGoDisabler(GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/Buttons/RightSideButtons/RightUpperButtonColumn/Supporter"), !GetPref(VRCPlusPet.mlCfgNameHideSocialSupporterButton));
 
-            bool hideUserIconTab = GetPref(VRCPlusPet.mlCfgNameHideUserIconTab);
+            bool hideGalleryTab = GetPref(VRCPlusPet.mlCfgNameHideGalleryTab);
 
-            if (!APIUser.CurrentUser.isSupporter && !hideUserIconTab)
+            if (!APIUser.CurrentUser.isSupporter && !hideGalleryTab)
             {
-                MelonPreferences.SetEntryValue(BuildInfo.Name, VRCPlusPet.mlCfgNameHideUserIconTab, true);
-                hideUserIconTab = true;
+                MelonPreferences.SetEntryValue(BuildInfo.Name, VRCPlusPet.mlCfgNameHideGalleryTab, true);
+                hideGalleryTab = true;
             }
 
             bool hideVRCPTab = GetPref(VRCPlusPet.mlCfgNameHideVRCPTab);
 
-            if (firstInit || VRCPlusPet.cachedCfgHideUserIconTab != hideUserIconTab || VRCPlusPet.cachedCfgHideVRCPTab != hideVRCPTab)
+            if (firstInit || VRCPlusPet.cachedCfgHideGalleryTab != hideGalleryTab || VRCPlusPet.cachedCfgHideVRCPTab != hideVRCPTab)
             {
-                VRCPlusPet.cachedCfgHideUserIconTab = hideUserIconTab;
+                VRCPlusPet.cachedCfgHideGalleryTab = hideGalleryTab;
                 VRCPlusPet.cachedCfgHideVRCPTab = hideVRCPTab;
 
                 Transform tabsTransform = GameObject.Find("UserInterface/MenuContent/Backdrop/Header/Tabs/ViewPort/Content").transform;
@@ -125,11 +125,11 @@ namespace VRCPlusPet
                         {
                             LayoutElement childLayoutElement = childTransform.GetComponent<LayoutElement>();
 
-                            if (childName == "UserIconTab")
-                                SetBadGoDisabler(childLayoutElement.gameObject, !hideUserIconTab);
+                            if (childName == "GalleryTab")
+                                SetBadGoDisabler(childLayoutElement.gameObject, !hideGalleryTab);
                             else
                             {
-                                if (hideUserIconTab)
+                                if (hideGalleryTab)
                                 {
                                     if (!originalSizes.ContainsKey(childName))
                                         originalSizes.Add(childName, childLayoutElement.preferredWidth);
@@ -164,10 +164,37 @@ namespace VRCPlusPet
 
             BadGoDisabler badGoDisabler = go.GetComponent<BadGoDisabler>();
 
-            if (isActive && badGoDisabler != null)
-                GameObject.Destroy(badGoDisabler);
+            if (isActive)
+            {
+                if (badGoDisabler != null)
+                    GameObject.Destroy(badGoDisabler);
+
+                go.SetActive(true);
+            }
             else if (badGoDisabler == null)
                 go.AddComponent<BadGoDisabler>();
+        }
+
+        public static void CheckAndRemoveAds(GameObject go, UnityEvent unityEvent)
+        {
+            if (go.name == "VRCPlusMiniBanner" || go.name == "VRCPlusBanner")
+            {
+                MelonLogger.Msg($"Disabling: [{go.name}] | Reason: [GameObject Name]");
+                SetBadGoDisabler(go, false);
+            }
+            else if (go.name != "SupporterButton")
+            {
+                for (int i = 0; i < unityEvent.GetPersistentEventCount(); i++)
+                {
+                    string methodName = unityEvent.GetPersistentMethodName(i);
+
+                    if (methodName == "OpenSubscribeToVRCPlusPage" || methodName == "ShowVRChatUpgradePage")
+                    {
+                        MelonLogger.Msg($"Disabling: [{go.name}] | Reason: [Method - {methodName}]");
+                        SetBadGoDisabler(go, false);
+                    }
+                }
+            }
         }
     }
 }
