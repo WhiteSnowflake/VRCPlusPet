@@ -1,7 +1,7 @@
 
 using System;
 using System.Reflection;
-using Harmony;
+using HarmonyLib;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +10,7 @@ namespace VRCPlusPet
 {
     class Patches
     {
-        static HarmonyInstance modHarmonyInstance = HarmonyInstance.Create(BuildInfo.Name);
+        static HarmonyLib.Harmony modHarmonyInstance = new HarmonyLib.Harmony(BuildInfo.Name);
 
         static int
             patchNum = 0,
