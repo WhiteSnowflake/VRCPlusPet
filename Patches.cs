@@ -2,18 +2,19 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using Harmony;
+using HarmonyLib;
 using VRC.Core;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
-using UnhollowerRuntimeLib.XrefScans;
 
 namespace VRCPlusPet
 {
     class Patches
     {
-        static HarmonyInstance modHarmonyInstance = HarmonyInstance.Create(BuildInfo.Name);
+        static HarmonyLib.Harmony modHarmonyInstance = new HarmonyLib.Harmony(BuildInfo.Name);
+        static MethodInfo currVRCPPatch;
+        static int lastVRCPMethodNum = 0;
 
         static int
             patchNum = 0,
@@ -25,13 +26,11 @@ namespace VRCPlusPet
             bubbleImageComponentCache,
             petImageComponentCache;
 
-
-
         static void Patch(MethodBase TargetMethod, HarmonyMethod Prefix, HarmonyMethod Postfix) {
             try
             {
-                modHarmonyInstance.Patch(TargetMethod, Prefix, Postfix);
                 MelonLogger.Msg($"Patching method [{++patchNum}/{patchesCount}] - Success");
+                modHarmonyInstance.Patch(TargetMethod, Prefix, Postfix);
             }
             catch (Exception e)
             {
@@ -40,6 +39,54 @@ namespace VRCPlusPet
         }
 
         static HarmonyMethod GetLocalPatchMethod(string name) => new HarmonyMethod(typeof(Patches).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic));
+
+        static void PatchVRCP()
+        {
+            if (lastVRCPMethodNum > 8)
+            {
+                MelonLogger.Error("Patching method [4] - Error: Proper FVRCP method not found, unpatching all methods...");
+                modHarmonyInstance.UnpatchAll();
+                lastVRCPMethodNum++;
+                return;
+            }
+
+            //Rebuild warning
+            MethodInfo methodInfo = typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.Length == 30 && method.Name == $"Method_Public_Static_Boolean_{lastVRCPMethodNum}").First();
+            lastVRCPMethodNum++;
+            currVRCPPatch = methodInfo;
+            Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
+        }
+
+        public static void CheckVRCPPatch()
+        {
+            GameObject shortcutMenu = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu");
+            GameObject vrcPlusBanner = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/HeaderContainer/VRCPlusBanner");
+            GameObject vrcPlusMiniBanner = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/VRCPlusMiniBanner");
+
+            shortcutMenu.SetActive(true);
+
+            while ((vrcPlusBanner.activeSelf || vrcPlusMiniBanner.activeSelf) && lastVRCPMethodNum < 9)
+            {
+                shortcutMenu.SetActive(true);
+                shortcutMenu.SetActive(false);
+                shortcutMenu.SetActive(true);
+
+                if (vrcPlusBanner.activeSelf || vrcPlusMiniBanner.activeSelf)
+                {
+                    MelonLogger.Warning($"Patching method [4] - Current FVRCP patch is not working, trying to patch another method... [{lastVRCPMethodNum}/8]");
+                    modHarmonyInstance.Unpatch(currVRCPPatch, HarmonyPatchType.All);
+                    patchNum--;
+                    PatchVRCP();
+                }
+                else
+                {
+                    MelonLogger.Warning($"Patching method [4] - Found proper method! FVRCP successfuly patched.");
+                    shortcutMenu.SetActive(false);
+                    currVRCPPatch = null;
+                    break;
+                }
+            }
+        }
 
         public static void DoPatches()
         {
@@ -53,31 +100,19 @@ namespace VRCPlusPet
 
             try
             {
-                //Rebuild warning
-                foreach (MethodInfo methodInfo in typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.StartsWith("Method_Public_Static_Boolean_")))
-                {
-                    foreach (XrefInstance instance in XrefScanner.UsedBy(methodInfo))
-                    {
-                        MethodBase calledMethod = instance.TryResolve();
-
-                        if (calledMethod != null && calledMethod.Name == "AddMessageResponse")
-                        {
-                            Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
-                            break;
-                        }
-                    }
-                }
+                PatchVRCP();
+                MelonLogger.Msg($"Patching method [4] - Patch will be checked after UI init...");
 
                 if (patchNum != patchesCount)
                 {
-                    MelonLogger.Error("Patching method [4] - Error: Xref Scanning Failed, unpatching all...");
+                    MelonLogger.Error("Patching method [4] - Error: Unknown, unpatching all methods...");
                     modHarmonyInstance.UnpatchAll();
                     errorFound = true;
                 }
             }
             catch
             {
-                MelonLogger.Error("Patching method [4] - Error: The class was renamed");
+                MelonLogger.Error("Patching method [4] - Error: Class was renamed");
                 errorFound = true;
             }
 
