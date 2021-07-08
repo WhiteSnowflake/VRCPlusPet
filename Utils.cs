@@ -1,5 +1,4 @@
 
-using Harmony;
 using VRC.Core;
 using System.IO;
 using MelonLoader;
@@ -138,7 +137,7 @@ namespace VRCPlusPet
                                     childLayoutElement.preferredWidth = 250f;
                                 }
                                 else
-                                    childLayoutElement.preferredWidth = originalSizes.GetValueSafe(childName);
+                                    childLayoutElement.preferredWidth = originalSizes.ContainsKey(childName) ? originalSizes[childName] : childLayoutElement.preferredWidth;
                             }
                         }
                     }
