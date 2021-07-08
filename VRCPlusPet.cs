@@ -16,7 +16,7 @@ namespace VRCPlusPet
         public const string Description = "Hides VRC+ advertising, can replace default pet, his phrases, poke sounds and chat bubble. Safe version.";
         public const string Author = "WhiteSnowflake";
         public const string Company = null;
-        public const string Version = "2.0.1";
+        public const string Version = "2.0.2";
         public const string DownloadLink = "https://github.com/WhiteSnowflake/VRCPlusPet";
     }
 
@@ -121,19 +121,14 @@ namespace VRCPlusPet
                 MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryButton}\" | 'Gallery' button will be hided");
 
             Patches.DoPatches();
+
+            MelonCoroutines.Start(OnUiManagerInit());
         }
 
-        static IEnumerator WaitForAPIUserAndInitUI()
+        static IEnumerator OnUiManagerInit()
         {
-            while (APIUser.CurrentUser == null)
+            while(VRCUiManager.field_Private_Static_VRCUiManager_0 == null)
                 yield return null;
-
-            Utils.InitUI(true);
-        }
-
-        public override void VRChat_OnUiManagerInit()
-        {
-            MelonCoroutines.Start(WaitForAPIUserAndInitUI());
 
             Utils.LogAsHeader($"UI Initialized{(cachedCfgHideAds ? ", disabling adverts..." : "")}");
 
@@ -154,6 +149,11 @@ namespace VRCPlusPet
 
                 Utils.LogAsHeader(error ? "Adverts disabling failed!" : "Adverts disabled!");
             }
+
+            while (APIUser.CurrentUser == null)
+                yield return null;
+
+            Utils.InitUI(true);
         }
     }
 }
