@@ -14,7 +14,11 @@ namespace VRCPlusPet
     {
         static HarmonyLib.Harmony modHarmonyInstance = new HarmonyLib.Harmony(BuildInfo.Name);
         static MethodInfo currVRCPPatch;
-        static int lastVRCPMethodNum = 0;
+        static int
+            lastVRCPMethodNum = 0,
+            maxVRCPPatchNum = 0;
+
+        static MethodInfo[] vrcpMethods;
 
         static int
             patchNum = 0,
@@ -40,32 +44,19 @@ namespace VRCPlusPet
 
         static HarmonyMethod GetLocalPatchMethod(string name) => new HarmonyMethod(typeof(Patches).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic));
 
-        static void PatchVRCP()
-        {
-            if (lastVRCPMethodNum > 8)
-            {
-                MelonLogger.Error("Patching method [4] - Error: Proper FVRCP method not found, unpatching all methods...");
-                modHarmonyInstance.UnpatchAll();
-                lastVRCPMethodNum++;
-                return;
-            }
-
-            //Rebuild warning
-            MethodInfo methodInfo = typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.Length == 30 && method.Name == $"Method_Public_Static_Boolean_{lastVRCPMethodNum}").First();
-            lastVRCPMethodNum++;
-            currVRCPPatch = methodInfo;
-            Patch(methodInfo, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
-        }
-
         public static void CheckVRCPPatch()
         {
+            //Rebuild warning
+            vrcpMethods = typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.Length == 30 && method.Name.Contains("Method_Public_Static_Boolean_")).ToArray();
+            maxVRCPPatchNum = vrcpMethods.Count();
+
             GameObject shortcutMenu = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu");
             GameObject vrcPlusBanner = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/HeaderContainer/VRCPlusBanner");
             GameObject vrcPlusMiniBanner = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/VRCPlusMiniBanner");
 
             shortcutMenu.SetActive(true);
 
-            while ((vrcPlusBanner.activeSelf || vrcPlusMiniBanner.activeSelf) && lastVRCPMethodNum < 9)
+            while ((vrcPlusBanner.activeSelf || vrcPlusMiniBanner.activeSelf) && lastVRCPMethodNum < (maxVRCPPatchNum + 1))
             {
                 shortcutMenu.SetActive(true);
                 shortcutMenu.SetActive(false);
@@ -73,19 +64,33 @@ namespace VRCPlusPet
 
                 if (vrcPlusBanner.activeSelf || vrcPlusMiniBanner.activeSelf)
                 {
-                    MelonLogger.Warning($"Patching method [4] - Current FVRCP patch is not working, trying to patch another method... [{lastVRCPMethodNum}/8]");
-                    modHarmonyInstance.Unpatch(currVRCPPatch, HarmonyPatchType.All);
-                    patchNum--;
-                    PatchVRCP();
+                    if (currVRCPPatch != null)
+                    {
+                        MelonLogger.Warning($"Patching method [4] - Current FVRCP patch is not working, trying to patch another method... [{lastVRCPMethodNum + 1}/{maxVRCPPatchNum}]");
+                        modHarmonyInstance.Unpatch(currVRCPPatch, HarmonyPatchType.All);
+                        patchNum--;
+                    }
+
+                    if (lastVRCPMethodNum >= maxVRCPPatchNum)
+                    {
+                        MelonLogger.Error("Patching method [4] - Error: Proper VRCP method not found, unpatching all methods...");
+                        modHarmonyInstance.UnpatchAll();
+                        break;
+                    }
+
+                    currVRCPPatch = vrcpMethods[lastVRCPMethodNum++];
+                    Patch(currVRCPPatch, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
                 }
                 else
                 {
-                    MelonLogger.Warning($"Patching method [4] - Found proper method! FVRCP successfuly patched.");
-                    shortcutMenu.SetActive(false);
-                    currVRCPPatch = null;
+                    MelonLogger.Warning($"Patching method [4] - Found proper method! VRCP successfuly patched.");
                     break;
                 }
             }
+
+            vrcpMethods = null;
+            currVRCPPatch = null;
+            shortcutMenu.SetActive(false);
         }
 
         public static void DoPatches()
@@ -96,27 +101,15 @@ namespace VRCPlusPet
             Patch(typeof(APIUser).GetMethod("get_isSupporter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
             Patch(typeof(APIUser).GetMethod("get_isEarlyAdopter"), null, GetLocalPatchMethod(nameof(FakeVRCPlusSocialPatch)));
 
-            bool errorFound = false;
+            MelonLogger.Msg($"Patching method [4/4] - will be patched after UI init.");
 
-            try
+            if (patchNum != (patchesCount - 1))
             {
-                PatchVRCP();
-                MelonLogger.Msg($"Patching method [4] - Patch will be checked after UI init...");
-
-                if (patchNum != patchesCount)
-                {
-                    MelonLogger.Error("Patching method [4] - Error: Unknown, unpatching all methods...");
-                    modHarmonyInstance.UnpatchAll();
-                    errorFound = true;
-                }
+                Utils.LogAsHeader("Patching Failed! Unpatching all methods...");
+                modHarmonyInstance.UnpatchAll();
             }
-            catch
-            {
-                MelonLogger.Error("Patching method [4] - Error: Class was renamed");
-                errorFound = true;
-            }
-
-            Utils.LogAsHeader(errorFound ? "Patching Failed!" : "Patching complete!");
+            else
+                Utils.LogAsHeader("Patching complete!");
         }
 
         #region Patches
@@ -128,7 +121,7 @@ namespace VRCPlusPet
 
         static bool FakeVRCPlusPatch(ref bool __result)
         {
-            if (Utils.GetPref(VRCPlusPet.mlCfgNameFakeVRCP))
+            if (vrcpMethods != null || Utils.GetPref(VRCPlusPet.mlCfgNameFakeVRCP))
             {
                 __result = true;
                 return false;
