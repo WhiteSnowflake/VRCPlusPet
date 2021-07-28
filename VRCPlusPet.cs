@@ -109,16 +109,16 @@ namespace VRCPlusPet
             }
 
             if (cachedCfgHideAds)
-                MelonLogger.Msg($"Option \"{mlCfgNameHideAds}\" | Adverts will be hided");
+                MelonLogger.Msg($"Option \"{mlCfgNameHideAds}\" | Adverts will be hidden");
 
             if (cachedCfgHideVRCPTab)
-                MelonLogger.Msg($"Option \"{mlCfgNameHideVRCPTab}\" | Menu 'VRC+' tab will be hided");
+                MelonLogger.Msg($"Option \"{mlCfgNameHideVRCPTab}\" | Menu 'VRC+' tab will be hidden");
 
             if (cachedCfgHideGalleryTab)
-                MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryTab}\" | 'Gallery' menu tab will be hided");
+                MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryTab}\" | 'Gallery' menu tab will be hidden");
 
             if (Utils.GetPref(mlCfgNameHideGalleryButton))
-                MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryButton}\" | 'Gallery' button will be hided");
+                MelonLogger.Msg($"Option \"{mlCfgNameHideGalleryButton}\" | 'Gallery' button will be hidden");
 
             Patches.DoPatches();
 
