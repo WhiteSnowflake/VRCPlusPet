@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Collections.Generic;
 using HarmonyLib;
 using VRC.Core;
 using MelonLoader;
@@ -13,12 +14,12 @@ namespace VRCPlusPet
     class Patches
     {
         static HarmonyLib.Harmony modHarmonyInstance = new HarmonyLib.Harmony(BuildInfo.Name);
-        static MethodInfo currVRCPPatch;
         static int
             lastVRCPMethodNum = 0,
             maxVRCPPatchNum = 0;
 
-        static MethodInfo[] vrcpMethods;
+        static PropertyInfo[] vrcpProperties;
+        static Dictionary<PropertyInfo, bool> oldPropertyValues = new Dictionary<PropertyInfo, bool>();
 
         static int
             patchNum = 0,
@@ -47,8 +48,8 @@ namespace VRCPlusPet
         public static void CheckVRCPPatch()
         {
             //Rebuild warning
-            vrcpMethods = typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetMethods().Where(method => method.Name.Length == 30 && method.Name.Contains("Method_Public_Static_Boolean_")).ToArray();
-            maxVRCPPatchNum = vrcpMethods.Count();
+            vrcpProperties = typeof(ObjectPublicBoDaBoStApBoStSiDaAcUnique).GetProperties().Where(property => property.Name.Contains("field_Private_Static_Boolean_")).ToArray();
+            maxVRCPPatchNum = vrcpProperties.Count();
 
             GameObject shortcutMenu = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu");
             GameObject vrcPlusBanner = GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/HeaderContainer/VRCPlusBanner");
@@ -64,22 +65,19 @@ namespace VRCPlusPet
 
                 if (vrcPlusBanner.activeSelf || vrcPlusMiniBanner.activeSelf)
                 {
-                    if (currVRCPPatch != null)
-                    {
-                        MelonLogger.Warning($"Patching method [4] - Current FVRCP patch is not working, trying to patch another method... [{lastVRCPMethodNum + 1}/{maxVRCPPatchNum}]");
-                        modHarmonyInstance.Unpatch(currVRCPPatch, HarmonyPatchType.All);
-                        patchNum--;
-                    }
-
                     if (lastVRCPMethodNum >= maxVRCPPatchNum)
                     {
                         MelonLogger.Error("Patching method [4] - Error: Proper VRCP method not found, unpatching all methods...");
-                        modHarmonyInstance.UnpatchAll();
+
+                        foreach(KeyValuePair<PropertyInfo, bool> keyValuePair in oldPropertyValues)
+                            keyValuePair.Key.SetValue(null, keyValuePair.Value);
+
                         break;
                     }
 
-                    currVRCPPatch = vrcpMethods[lastVRCPMethodNum++];
-                    Patch(currVRCPPatch, GetLocalPatchMethod(nameof(FakeVRCPlusPatch)), null);
+                    PropertyInfo propertyInfo = vrcpProperties[lastVRCPMethodNum++];
+                    oldPropertyValues.Add(propertyInfo, (bool)propertyInfo.GetValue(null));
+                    propertyInfo.SetValue(null, true);
                 }
                 else
                 {
@@ -88,8 +86,8 @@ namespace VRCPlusPet
                 }
             }
 
-            vrcpMethods = null;
-            currVRCPPatch = null;
+            vrcpProperties = null;
+            oldPropertyValues = null;
             shortcutMenu.SetActive(false);
         }
 
@@ -121,7 +119,7 @@ namespace VRCPlusPet
 
         static bool FakeVRCPlusPatch(ref bool __result)
         {
-            if (vrcpMethods != null || Utils.GetPref(VRCPlusPet.mlCfgNameFakeVRCP))
+            if (vrcpProperties != null || Utils.GetPref(VRCPlusPet.mlCfgNameFakeVRCP))
             {
                 __result = true;
                 return false;
