@@ -1,12 +1,11 @@
 
-using System;
-using Harmony;
 using VRC.Core;
-using System.IO;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.Networking;
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -27,12 +26,14 @@ namespace VRCPlusPet
 
         public static IEnumerator SetupAudioFile(string filePath)
         {
-            WWW www = new WWW(filePath, null, new Il2CppSystem.Collections.Generic.Dictionary<string, string>());
-            yield return www;
+            var unityWebRequest = UnityWebRequest.Get($"file://{filePath}");
+            unityWebRequest.SendWebRequest();
 
-            AudioClip audioClip = www.GetAudioClip();
+            while (!unityWebRequest.isDone)
+                yield return null;
+
+            AudioClip audioClip = WebRequestWWW.InternalCreateAudioClipUsingDH(unityWebRequest.downloadHandler, unityWebRequest.url, false, false, AudioType.UNKNOWN);
             audioClip.hideFlags |= HideFlags.DontUnloadUnusedAsset;
-
             audioClips.Add(audioClip);
         }
 
