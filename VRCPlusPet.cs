@@ -1,9 +1,11 @@
 
+using System;
 using System.IO;
 using System.Linq;
 using System.Collections;
 using MelonLoader;
 using UnityEngine;
+using UnityEngine.UI;
 using VRC.Core;
 
 namespace VRCPlusPet
@@ -11,11 +13,11 @@ namespace VRCPlusPet
     public static class BuildInfo
     {
         public const string Name = "VRCPlusPet";
-        public const string Description = "Hides VRC+ advertising, can replace default pet, his phrases, poke sounds and chat bubble.";
+        public const string Description = "Hides VRC+ advertising, can replace default pet, his phrases, poke sounds and chat bubble. Safe version with some additional things.";
         public const string Author = "WhiteSnowflake";
         public const string Company = null;
-        public const string Version = "1.1.10";
-        public const string DownloadLink = "https://github.com/WhiteSnowflake/VRCPlusPet/tree/local-vrcp-version";
+        public const string Version = "1.2.0";
+        public const string DownloadLink = "https://github.com/WhiteSnowflake/VRCPlusPet";
     }
 
     public class VRCPlusPet : MelonMod
@@ -27,14 +29,16 @@ namespace VRCPlusPet
             mlCfgNameReplaceSounds = "Replace Sounds (After Restart)";
 
         public static string
-            mlCfgNameFakeVRCP = "Fake VRCP",
+            mlCfgForceEnablePet = "Force-enable a pet",
+            mlCfgFakeSocialVRCP = "Fake VRC+ in social",
+            mlCfgNameHideAds = "Hide Adverts (After Restart)",
             mlCfgNameHideGalleryTab = "Hide Gallery menu tab (VRC+ Only)",
             mlCfgNameHideVRCPTab = "Hide VRC+ menu tab",
             mlCfgNameHideSocialSupporterButton = "Hide Social Supporter button",
             mlCfgNameHideGalleryButton = "Hide Gallery button";
 
         public static bool
-            cachedCfgFakeVRCP,
+            cachedCfgHideAds,
             cachedCfgHideGalleryTab,
             cachedCfgHideVRCPTab;
 
@@ -55,10 +59,13 @@ namespace VRCPlusPet
 
             Utils.LogAsHeader("Initializing, preparing for patching...");
 
+            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgForceEnablePet, false);
+            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgFakeSocialVRCP, false);
+
             MelonPreferences.CreateCategory(BuildInfo.Name, BuildInfo.Name);
 
-            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameFakeVRCP, false);
-            cachedCfgFakeVRCP = Utils.GetPref(mlCfgNameFakeVRCP);
+            MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideAds, true);
+            cachedCfgHideAds = Utils.GetPref(mlCfgNameHideAds);
 
             MelonPreferences.CreateEntry(BuildInfo.Name, mlCfgNameHideGalleryTab, false);
             cachedCfgHideGalleryTab = Utils.GetPref(mlCfgNameHideGalleryTab);
@@ -75,9 +82,6 @@ namespace VRCPlusPet
 
             if (!MelonHandler.Mods.Any(mod => mod.Info.Name == "UI Expansion Kit"))
                 MelonLogger.Warning("UIExpansionKit not found, visual preferences cannot be accessed");
-
-            if (Utils.GetPref(mlCfgNameFakeVRCP))
-                MelonLogger.Msg($"Option \"{mlCfgNameFakeVRCP}\" | VRC+ will be cracked locally");
 
             if (Utils.GetPref(mlCfgNameReplacePet))
             {
@@ -109,6 +113,9 @@ namespace VRCPlusPet
                         MelonLogger.Warning("Option \"aud\" | File has wrong audio format (Only .ogg/.wav are supported), will be ignored");
             }
 
+            if (cachedCfgHideAds)
+                MelonLogger.Msg($"Option \"{mlCfgNameHideAds}\" | Adverts will be hidden");
+
             if (cachedCfgHideVRCPTab)
                 MelonLogger.Msg($"Option \"{mlCfgNameHideVRCPTab}\" | Menu 'VRC+' tab will be hidden");
 
@@ -125,10 +132,31 @@ namespace VRCPlusPet
 
         static IEnumerator OnUiManagerInit()
         {
-            while (VRCUiManager.field_Private_Static_VRCUiManager_0 == null || APIUser.CurrentUser == null)
+            while(VRCUiManager.field_Private_Static_VRCUiManager_0 == null)
                 yield return null;
 
-            Patches.CheckVRCPPatch();
+            Utils.LogAsHeader($"UI Initialized{(cachedCfgHideAds ? ", disabling adverts..." : "")}");
+
+            if (cachedCfgHideAds)
+            {
+                bool error = false;
+
+                try
+                {
+                    Resources.FindObjectsOfTypeAll<Button>().ToList().ForEach(button => Utils.CheckAndRemoveAds(button.gameObject, button.onClick));
+                    Resources.FindObjectsOfTypeAll<TweenButton>().ToList().ForEach(button => Utils.CheckAndRemoveAds(button.gameObject, button.field_Public_UnityEvent_0));
+                }
+                catch (Exception e)
+                {
+                    MelonLogger.Error($"Adverts disabling: [{e.Message}]");
+                    error = true;
+                }
+
+                Utils.LogAsHeader(error ? "Adverts disabling failed!" : "Adverts disabled!");
+            }
+
+            while (APIUser.CurrentUser == null)
+                yield return null;
 
             Utils.InitUI(true);
         }
