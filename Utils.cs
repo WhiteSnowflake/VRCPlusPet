@@ -1,11 +1,13 @@
 
 using VRC.Core;
 using System.IO;
+using System.Collections;
+using System.Collections.Generic;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
-using System.Collections.Generic;
+using UnityEngine.Events;
+using UnityEngine.Networking;
 
 namespace VRCPlusPet
 {
@@ -24,12 +26,14 @@ namespace VRCPlusPet
 
         public static IEnumerator SetupAudioFile(string filePath)
         {
-            WWW www = new WWW(filePath, null, new Il2CppSystem.Collections.Generic.Dictionary<string, string>());
-            yield return www;
+            var unityWebRequest = UnityWebRequest.Get($"file://{filePath}");
+            unityWebRequest.SendWebRequest();
 
-            AudioClip audioClip = www.GetAudioClip();
+            while (!unityWebRequest.isDone)
+                yield return null;
+
+            AudioClip audioClip = WebRequestWWW.InternalCreateAudioClipUsingDH(unityWebRequest.downloadHandler, unityWebRequest.url, false, false, AudioType.UNKNOWN);
             audioClip.hideFlags |= HideFlags.DontUnloadUnusedAsset;
-
             audioClips.Add(audioClip);
         }
 
@@ -93,10 +97,9 @@ namespace VRCPlusPet
             SetBadGoDisabler(GameObject.Find("UserInterface/QuickMenu/ShortcutMenu/GalleryButton"), !GetPref(VRCPlusPet.mlCfgNameHideGalleryButton));
             SetBadGoDisabler(GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/Buttons/RightSideButtons/RightUpperButtonColumn/Supporter"), !GetPref(VRCPlusPet.mlCfgNameHideSocialSupporterButton));
 
-            bool fakeVRCP = GetPref(VRCPlusPet.mlCfgNameFakeVRCP);
             bool hideGalleryTab = GetPref(VRCPlusPet.mlCfgNameHideGalleryTab);
 
-            if ((fakeVRCP && !hideGalleryTab) || (!APIUser.CurrentUser.isSupporter && !hideGalleryTab))
+            if (!APIUser.CurrentUser.isSupporter && !hideGalleryTab)
             {
                 MelonPreferences.SetEntryValue(BuildInfo.Name, VRCPlusPet.mlCfgNameHideGalleryTab, true);
                 hideGalleryTab = true;
@@ -104,9 +107,8 @@ namespace VRCPlusPet
 
             bool hideVRCPTab = GetPref(VRCPlusPet.mlCfgNameHideVRCPTab);
 
-            if (firstInit || VRCPlusPet.cachedCfgFakeVRCP != fakeVRCP || VRCPlusPet.cachedCfgHideGalleryTab != hideGalleryTab || VRCPlusPet.cachedCfgHideVRCPTab != hideVRCPTab)
+            if (firstInit || VRCPlusPet.cachedCfgHideGalleryTab != hideGalleryTab || VRCPlusPet.cachedCfgHideVRCPTab != hideVRCPTab)
             {
-                VRCPlusPet.cachedCfgFakeVRCP = fakeVRCP;
                 VRCPlusPet.cachedCfgHideGalleryTab = hideGalleryTab;
                 VRCPlusPet.cachedCfgHideVRCPTab = hideVRCPTab;
 
@@ -173,6 +175,28 @@ namespace VRCPlusPet
             }
             else if (badGoDisabler == null)
                 go.AddComponent<BadGoDisabler>();
+        }
+
+        public static void CheckAndRemoveAds(GameObject go, UnityEvent unityEvent)
+        {
+            if (go.name == "VRCPlusMiniBanner" || go.name == "VRCPlusBanner")
+            {
+                MelonLogger.Msg($"Disabling: [{go.name}] | Reason: [GameObject Name]");
+                SetBadGoDisabler(go, false);
+            }
+            else if (go.name != "SupporterButton")
+            {
+                for (int i = 0; i < unityEvent.GetPersistentEventCount(); i++)
+                {
+                    string methodName = unityEvent.GetPersistentMethodName(i);
+
+                    if (methodName == "OpenSubscribeToVRCPlusPage" || methodName == "ShowVRChatUpgradePage")
+                    {
+                        MelonLogger.Msg($"Disabling: [{go.name}] | Reason: [Method - {methodName}]");
+                        SetBadGoDisabler(go, false);
+                    }
+                }
+            }
         }
     }
 }
