@@ -16,7 +16,7 @@ namespace VRCPlusPet
         public const string Description = "Hides VRC+ advertising, can replace default pet, his phrases, poke sounds and chat bubble. Safe version.";
         public const string Author = "WhiteSnowflake";
         public const string Company = null;
-        public const string Version = "2.0.2";
+        public const string Version = "2.0.3";
         public const string DownloadLink = "https://github.com/WhiteSnowflake/VRCPlusPet";
     }
 
